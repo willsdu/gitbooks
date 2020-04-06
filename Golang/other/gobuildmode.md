@@ -1,0 +1,1 @@
+https://blog.lab99.org/post/golang-2017-10-01-video-go-build-mode.html
