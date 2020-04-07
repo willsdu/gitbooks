@@ -12,35 +12,35 @@
 ## if
 
 ```xml
-<select id="findActiveBlogLike"
-     resultType="Blog">
-  SELECT * FROM BLOG WHERE state = ‘ACTIVE’
-  <if test="title != null">
-    AND title like #{title}
-  </if>
-  <if test="author != null and author.name != null">
-    AND author_name like #{author.name}
-  </if>
+<select id="query" resultType="com.entity.Student">
+    select id,name,age from student
+    <where>
+        <if test="name!=null">
+            AND name like '%#{name}%'
+        </if>
+        <if test="age>0">
+            AND age=#{age}
+        </if>
+    </where>
 </select>
 ```
 
 ## choose (when, otherwise)
 
 ```xml
-<select id="findActiveBlogLike"
-     resultType="Blog">
-  SELECT * FROM BLOG WHERE state = ‘ACTIVE’
-  <choose>
-    <when test="title != null">
-      AND title like #{title}
-    </when>
-    <when test="author != null and author.name != null">
-      AND author_name like #{author.name}
-    </when>
-    <otherwise>
-      AND featured = 1
-    </otherwise>
-  </choose>
+<select id="pick" resultType="com.entity.Student">
+    select id,name,age from student
+    <choose>
+        <when test="name!=null">
+            AND name like '%#{name}%'
+        </when>
+        <when test="age>0">
+            AND age=#{age}
+        </when>
+        <otherwise>
+            AND age>20
+        </otherwise>
+    </choose>
 </select>
 ```
 
@@ -79,19 +79,19 @@
 ### set
 
 ```xml
-<update id="updateAuthorIfNecessary">
-  update Author
-    <set>
-      <if test="username != null">username=#{username},</if>
-      <if test="password != null">password=#{password},</if>
-      <if test="email != null">email=#{email},</if>
-      <if test="bio != null">bio=#{bio}</if>
-    </set>
-  where id=#{id}
-</update>
+ <update id="update" parameterType="com.entity.Student">
+     update student
+     <set>
+         <if test="name!=null">name=#{name},</if>
+         <if test="age>0">age=#{age}</if>
+     </set>
+     where id=#{id}
+ </update>
 ```
 
 ## foreach
+
+foreach用来方便的描述，select * from student where id in (2,3,4);
 
 ```xml
 <select id="selectPostIn" resultType="domain.blog.Post">
@@ -107,6 +107,8 @@
 
 ## script
 
+要在带注解的映射器接口类中使用动态 SQL，可以使用 *script* 元素。比如:
+
 ```xml
 @Update({"<script>",
       "update Author",
@@ -121,7 +123,11 @@
     void updateAuthorValues(Author author);
 ```
 
+但是这里使用的很不方便，建议还是在XML文件中使用比较好
+
 ## bind
+
+`bind` 元素允许你在 OGNL（对象图导航语言） 表达式以外创建一个变量，并将其绑定到当前的上下文。比如：
 
 ```xml
 <select id="selectBlogsLike" resultType="Blog">
@@ -132,6 +138,16 @@
 ```
 
 ## 多数据库支持
+
+如果配置了 databaseIdProvider，你就可以在动态代码中使用名为 “_databaseId” 的变量来为不同的数据库构建特定的语句。比如下面的例子：
+
+```xml
+<!--   位于environments之后 -->
+<databaseIdProvider type="DB_VENDOR">
+    <property name="MySQL" value="mysql"/>
+    <property name="Oracle" value="oracle" />
+</databaseIdProvider>
+```
 
 ```xml
 <insert id="insert">
@@ -146,6 +162,8 @@
   insert into users values (#{id}, #{name})
 </insert>
 ```
+
+多数据库使用起来还是比较的混乱的，不建议使用
 
 ### 动态 SQL 中的插入脚本语言
 

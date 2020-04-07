@@ -13,19 +13,12 @@
         "back-to-top-button",
         "splitter",
         "page-toc-button",
-        "-highlight",
-        "prism",
         "code",
         "hide-element",
         "-sharing",
         "sharing-plus"
     ],
     "pluginsConfig": {
-        "prism": {
-            "css": [
-                "prismjs/themes/prism-funky.css"
-            ]
-        },
         "sharing": {
             "douban": true,
             "qq": true,

@@ -125,7 +125,7 @@ SqlSessionFactory factory = new SqlSessionFactoryBuilder().build(reader, environ
 
 也可以指定一个包名，MyBatis 会在包名下面搜索需要的 Java Bean，比如：
 
-```xml-dtd
+```xml
 <typeAliases>
   <package name="domain.blog"/>
 </typeAliases>
@@ -185,29 +185,44 @@ MyBatis 在设置预处理语句（PreparedStatement）中的参数或从结果�
 每次 MyBatis 创建结果对象的新实例时，它都会使用一个对象工厂（ObjectFactory）实例来完成实例化工作。 默认的对象工厂需要做的仅仅是实例化目标类，要么通过默认无参构造方法，要么通过存在的参数映射来调用带有参数的构造方法。 如果想覆盖对象工厂的默认行为，可以通过创建自己的对象工厂来实现。比如
 
 ```java
-// ExampleObjectFactory.java
-public class ExampleObjectFactory extends DefaultObjectFactory {
-  public Object create(Class type) {
-    return super.create(type);
-  }
-  public Object create(Class type, List<Class> constructorArgTypes, List<Object> constructorArgs) {
-    return super.create(type, constructorArgTypes, constructorArgs);
-  }
-  public void setProperties(Properties properties) {
-    super.setProperties(properties);
-  }
-  public <T> boolean isCollection(Class<T> type) {
-    return Collection.class.isAssignableFrom(type);
-  }}
+public class StudentFactory extends DefaultObjectFactory {
+    //处理默认构造方法
+    public <T> T create(Class<T> type) {
+        return super.create(type);
+    }
+
+    //处理有参构造方法，这里可以添加一些处理逻辑
+    public <T> T create(Class<T> type, List<Class<?>> constructorArgTypes, List<Object> constructorArgs) {
+        T ret = super.create(type, constructorArgTypes, constructorArgs);
+        if (Student.class.isAssignableFrom(type)) {
+            Student stu = (Student) ret;
+            stu.ini();
+        }
+        return ret;
+    }
+
+    //处理参数
+    public void setProperties(Properties properties) {
+        System.out.printf("StudentFactory 处理参数： %s\n", properties.getProperty("fname"));
+        super.setProperties(properties);
+    }
+
+    //判断集合类型参数
+    public <T> boolean isCollection(Class<T> type) {
+        return Collection.class.isAssignableFrom(type);
+    }
+}
 ```
 
-配置wen
+配置文件 mybatis-config.xml
 
 ```xml
 <!-- mybatis-config.xml -->
-<objectFactory type="org.mybatis.example.ExampleObjectFactory">
-  <property name="someProperty" value="100"/>
+<objectFactory type="com.factory.StudentFactory">
+    <!-- mybatis初始化后生效，全局变量 -->
+    <property name="fname" value="student factory"/>
 </objectFactory>
+
 ```
 
 
@@ -222,22 +237,30 @@ MyBatis 允许你在映射语句执行过程中的某一点进行拦截调用，
 - StatementHandler (prepare, parameterize, batch, update, query)
 
 ```java
-// ExamplePlugin.java
-@Intercepts({@Signature(
-  type= Executor.class,
-  method = "update",
-  args = {MappedStatement.class,Object.class})})
+@Intercepts({
+        @Signature(
+                type = Executor.class,
+                method = "query",
+                args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}
+        )
+})
 public class ExamplePlugin implements Interceptor {
-  private Properties properties = new Properties();
-  public Object intercept(Invocation invocation) throws Throwable {
-    // implement pre processing if need
-    Object returnObject = invocation.proceed();
-    // implement post processing if need
-    return returnObject;
-  }
-  public void setProperties(Properties properties) {
-    this.properties = properties;
-  }
+
+    //拦截逻辑，参数是代理类
+    public Object intercept(Invocation invocation) throws Throwable {
+        System.out.printf("ExamplePlugin 处理中 ....\n");
+        return invocation.proceed();
+    }
+
+    // 加载插件，一般使用Plugin.wrap(target, this);加载当前插件
+    public Object plugin(Object target) {
+        return Plugin.wrap(target, this);
+    }
+
+    // 初始化属性
+    public void setProperties(Properties properties) {
+        properties.setProperty("newValue", "200");
+    }
 }
 ```
 
@@ -246,9 +269,9 @@ public class ExamplePlugin implements Interceptor {
 ```xml
 <!-- mybatis-config.xml -->
 <plugins>
-  <plugin interceptor="org.mybatis.example.ExamplePlugin">
-    <property name="someProperty" value="100"/>
-  </plugin>
+    <plugin interceptor="com.plugin.ExamplePlugin">
+        <property name="newValue" value="100"/>
+    </plugin>
 </plugins>
 ```
 
@@ -256,13 +279,104 @@ public class ExamplePlugin implements Interceptor {
 
 ## environments（环境配置）
 
-### environment（环境变量）
+显示开发有多个环境，MyBatis也可以配置多个不同的环境，但是每个 **SqlSessionFactory**只能有一个环境
 
-#### transactionManager（事务管理器）
+```xml
+<environments default="development">
+    <environment id="development">
+        <transactionManager type="JDBC"/>
+        <dataSource type="POOLED">
+
+            <property name="driver" value="${database.driver}"/>
+            <property name="url" value="${database.url}"/>
+            <property name="username" value="${database.username}"/>
+            <property name="password" value="${database.password}"/>
+        </dataSource>
+    </environment>
+
+    <environment id="product">
+        <transactionManager type="JDBC"/>
+        <dataSource type="POOLED">
+            <property name="driver" value="${database.driver}"/>
+            <property name="url" value="${database.url}"/>
+            <property name="username" value="${database.username}"/>
+            <property name="password" value="${database.password}"/>
+        </dataSource>
+    </environment>
+</environments>
+```
+
+选择某一个环境变量，这里的product，可以使用系统环境变量，灵活选择对应的环境
+```java
+sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream,"product");
+                
+System.out.printf("env: %s\n", sqlSessionFactory.getConfiguration().getEnvironment().getId());
+```
+
+### transactionManager（事务管理器）
+
+MyBatis有两种事务管理器，如果是使用spring+MyBatis，则没有必要配置事务管理器，因为 Spring 模块会使用自带的管理器来覆盖前面的配置。 
+
+- JDBC – 这个配置直接使用了 JDBC 的提交和回滚设施，它依赖从数据源获得的连接来管理事务作用域，这也是MyBatis的默认值
+
+- MANAGED – 这个配置几乎没做什么。它从不提交或回滚一个连接，而是让容器来管理事务的整个生命周期（比如 JEE 应用服务器的上下文）。 默认情况下它会关闭连接。然而一些容器并不希望连接被关闭，因此需要将 closeConnection 属性设置为 false 来阻止默认的关闭行为。例如:
+
+  ```
+  <transactionManager type="MANAGED">
+    <property name="closeConnection" value="false"/>
+  </transactionManager>
+  ```
 
 #### dataSource（数据源）
 
+dataSource 元素使用标准的 JDBC 数据源接口来配置 JDBC 连接对象的资源。有三种内建的数据源类型（也就是 type="[UNPOOLED|POOLED|JNDI]"）：
+
+#### UNPOOLED
+
+这个数据源的实现会每次请求时打开和关闭连接
+
+- `driver` – 这是 JDBC 驱动的 Java 类全限定名（并不是 JDBC 驱动中可能包含的数据源类）。
+- `url` – 这是数据库的 JDBC URL 地址。
+- `username` – 登录数据库的用户名。
+- `password` – 登录数据库的密码。
+- `defaultTransactionIsolationLevel` – 默认的连接事务隔离级别。
+- `defaultNetworkTimeout` – 等待数据库操作完成的默认网络超时时间（单位：毫秒）
+- driver.encoding=UTF8（可选）
+
+#### POOLED
+
+这种数据源的实现利用“池”的概念将 JDBC 连接对象组织起来，避免了创建新的连接实例时所必需的初始化和认证时间。除了上面的属性，还有一些针对连接池的属性
+
+- `poolMaximumActiveConnections` – 在任意时间可存在的活动（正在使用）连接数量，默认值：10
+- `poolMaximumIdleConnections` – 任意时间可能存在的空闲连接数。
+- `poolMaximumCheckoutTime` – 在被强制返回之前，池中连接被检出（checked out）时间，默认值：20000 毫秒（即 20 秒）
+- `poolTimeToWait` – 这是一个底层设置，如果获取连接花费了相当长的时间，连接池会打印状态日志并重新尝试获取一个连接（避免在误配置的情况下一直失败且不打印日志），默认值：20000 毫秒（即 20 秒）。
+- `poolMaximumLocalBadConnectionTolerance` – 这是一个关于坏连接容忍度的底层设置， 作用于每一个尝试从缓存池获取连接的线程。 如果这个线程获取到的是一个坏的连接，那么这个数据源允许这个线程尝试重新获取一个新的连接，但是这个重新尝试的次数不应该超过 `poolMaximumIdleConnections` 与 `poolMaximumLocalBadConnectionTolerance` 之和。 默认值：3（新增于 3.4.5）
+- `poolPingQuery` – 发送到数据库的侦测查询，用来检验连接是否正常工作并准备接受请求。默认是“NO PING QUERY SET”，这会导致多数数据库驱动出错时返回恰当的错误消息。
+- `poolPingEnabled` – 是否启用侦测查询。若开启，需要设置 `poolPingQuery` 属性为一个可执行的 SQL 语句（最好是一个速度非常快的 SQL 语句），默认值：false。
+- `poolPingConnectionsNotUsedFor` – 配置 poolPingQuery 的频率。可以被设置为和数据库连接超时时间一样，来避免不必要的侦测，默认值：0（即所有连接每一时刻都被侦测 — 当然仅当 poolPingEnabled 为 true 时适用）。
+
+####  JNDI
+
+个数据源实现是为了能在如 EJB 或应用服务器这类容器中使用，容器可以集中或在外部配置数据源，然后放置一个 JNDI 上下文的数据源引用。
+
+- `initial_context` – 这个属性用来在 InitialContext 中寻找上下文（即，initialContext.lookup(initial_context)）。这是个可选属性，如果忽略，那么将会直接从 InitialContext 中寻找 data_source 属性。
+- `data_source` – 这是引用数据源实例位置的上下文路径。提供了 initial_context 配置时会在其返回的上下文中进行查找，没有提供时则直接在 InitialContext 中查找。
+- env.encoding=UTF8 （可选）
+
 ## databaseIdProvider（数据库厂商标识)
+
+下面的配置，会在后面的动态SQL中得到应用
+
+```
+<!--   位于environments之后 -->
+<databaseIdProvider type="DB_VENDOR">
+    <property name="MySQL" value="mysql"/>
+    <property name="Oracle" value="oracle" />
+</databaseIdProvider>
+```
+
+
 
 ## mappers（映射器）
 
