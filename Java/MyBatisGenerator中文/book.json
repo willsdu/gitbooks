@@ -1,0 +1,44 @@
+{
+    "title": "公共服务组文档库",
+    "language" : "zh-hans",
+    "disableTitleFormatting": true,
+    "sortedBy": "-",
+    "ignores": ["_book","node_modules"], 
+    "plugins": [
+        "-lunr",
+        "-search",
+        "search-pro",
+        "chapter-fold",
+        "expandable-chapters",
+        "back-to-top-button",
+        "splitter",
+        "page-toc-button",
+        "code",
+        "hide-element",
+        "-sharing",
+        "sharing-plus"
+    ],
+    "pluginsConfig": {
+        "sharing": {
+            "douban": true,
+            "qq": true,
+            "qzone": true,
+            "weibo": true,
+            "all": [
+                "douban",
+                "weibo",
+                "qq",
+                "qzone"
+            ]
+        },
+        "hide-element": {
+            "elements": [
+                ".gitbook-link"
+            ]
+        },
+        "page-toc-button": {
+            "maxTocDepth": 2,
+            "minTocSize": 2
+        }
+    }
+}
