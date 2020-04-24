@@ -9,3 +9,4 @@
   * [日志](1-MyBatis/6-日志.md)
 - [MyBatisGenerator](2-MyBatisGenerator/README.md)
   * [常见问题](2-MyBatisGenerator/常见问题.md)
+* [表拆分的简单实现](表拆分的简单实现.md)

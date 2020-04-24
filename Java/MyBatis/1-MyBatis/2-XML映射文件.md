@@ -160,7 +160,7 @@ public User get(@Param("userId") long userId, @Param("tableIndex") int tableInde
 
 如果遇到更灵活的，重复很高的查询语句，比如：
 
-```
+```java
 @Select("select * from user where id = #{id}")
 User findById(@Param("id") long id);
 
@@ -175,7 +175,7 @@ User findByEmail(@Param("email") String email);
 
 可以使用下面的一个方法
 
-```
+```java
 @Select("select * from user where ${column} = #{value}")
 User findByColumn(@Param("column") String column, @Param("value") String value);
 ```
@@ -194,7 +194,7 @@ User userOfEmail = userMapper.findByColumn("email", "noone@nowhere.com");
 
 resultMap元素是MyBatis中最强大，也是比较复杂的元素
 
-```
+```java
 <select id="get" parameterType="long" resultType="com.entity.Student">
       select id,name,age from student where id=#{id}
 </select>

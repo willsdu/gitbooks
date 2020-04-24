@@ -68,11 +68,19 @@
 </select>
 ```
 
-### trim
+与其等价的trim
 
 ```xml
 <trim prefix="WHERE" prefixOverrides="AND |OR ">
-  ...
+   <if test="state != null">
+         state = #{state}
+    </if>
+    <if test="title != null">
+        AND title like #{title}
+    </if>
+    <if test="author != null and author.name != null">
+        AND author_name like #{author.name}
+    </if>
 </trim>
 ```
 
@@ -87,6 +95,14 @@
      </set>
      where id=#{id}
  </update>
+```
+
+与其等价的trim
+```xml
+<trim prefix="SET" suffixOverrides=",">
+    <if test="name!=null">name=#{name},</if>
+    <if test="age>0">age=#{age}</if>
+</trim>
 ```
 
 ## foreach
